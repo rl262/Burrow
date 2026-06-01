@@ -1,0 +1,4 @@
+# Burrow dev/test dependencies (not needed at runtime).
+# Run the suite with:  pip install -r dashboard/app/requirements.txt -r requirements-dev.txt && pytest
+pytest>=8.0
+respx>=0.21          # httpx mocking, for future PowerDNS-client integration tests

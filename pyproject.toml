@@ -1,0 +1,15 @@
+# Tooling config for Burrow's dashboard (Python) + test suite.
+# There is no Python build/package step — the dashboard is deployed as a venv by
+# install.sh. This file only configures ruff (lint) and pytest.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]   # pyflakes + pycodestyle; expand later (I/B/UP) as the code is tidied
+ignore = ["E501"]          # long lines in templates/strings are tolerated
+
+[tool.pytest.ini_options]
+pythonpath = ["dashboard/app"]   # make the dns_manager package importable
+testpaths = ["tests/python"]

@@ -13,7 +13,17 @@
 set -euo pipefail
 
 BURROW_CONF="${BURROW_CONF:-/etc/burrow/burrow.conf}"
-SCHEMA_FILE="/usr/share/pdns-backend-mysql/schema/schema.mysql.sql"
+# The gmysql schema location varies by distro + PowerDNS version (4.x->5.x moved
+# it around, and older Debian ships it gzipped under /usr/share/doc). Probe this
+# candidate list and use the first that exists; a .gz is decompressed on load.
+SCHEMA_CANDIDATES=(
+  /usr/share/pdns-backend-mysql/schema/schema.mysql.sql
+  /usr/share/doc/pdns-backend-mysql/schema.mysql.sql
+  /usr/share/doc/pdns-backend-mysql/schema.mysql.sql.gz
+  /usr/share/pdns/schema.mysql.sql
+  /usr/share/doc/pdns-server/schema.mysql.sql
+  /usr/share/doc/pdns-server/schema.mysql.sql.gz
+)
 PDNS_DB="pdns"
 PDNS_DB_USER="pdns"
 NS_LABEL="ns"   # produces ns.${LOCAL_DOMAIN} as the primary nameserver name
@@ -67,9 +77,17 @@ has_domains="$(mysql_root -N -B -e \
   "SELECT COUNT(*) FROM information_schema.tables \
    WHERE table_schema='${PDNS_DB}' AND table_name='domains';")"
 if [[ "$has_domains" -eq 0 ]]; then
-  [[ -r "$SCHEMA_FILE" ]] || die "schema file not found: $SCHEMA_FILE (is pdns-backend-mysql installed?)"
-  log "loading gmysql schema from $SCHEMA_FILE"
-  mysql_root "$PDNS_DB" < "$SCHEMA_FILE"
+  schema=""
+  for cand in "${SCHEMA_CANDIDATES[@]}"; do
+    [[ -r "$cand" ]] && { schema="$cand"; break; }
+  done
+  [[ -n "$schema" ]] || die "gmysql schema not found (looked in: ${SCHEMA_CANDIDATES[*]}). Is pdns-backend-mysql installed?"
+  log "loading gmysql schema from $schema"
+  if [[ "$schema" == *.gz ]]; then
+    zcat -- "$schema" | mysql_root "$PDNS_DB"
+  else
+    mysql_root "$PDNS_DB" < "$schema"
+  fi
 else
   log "schema already present (domains table exists) — skipping load"
 fi

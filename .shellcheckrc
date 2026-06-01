@@ -1,0 +1,8 @@
+# Burrow shellcheck config.
+external-sources=true
+# SC1090/SC1091: library files are sourced via runtime $SRC paths shellcheck can't
+#   resolve statically.
+# SC2016: Burrow templates configs with envsubst, which REQUIRES the var list to be
+#   single-quoted (e.g. envsubst '${FOO} ${BAR}') so the shell does NOT expand it
+#   first — single quotes there are intentional, not a bug.
+disable=SC1090,SC1091,SC2016

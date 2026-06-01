@@ -1,0 +1,19 @@
+# /etc/sudoers.d/burrow -- installed by the Burrow installer.
+# Grants the 'burrow' service user passwordless sudo for ONLY the specific
+# unbound-control / unbound-checkconf subcommands the dashboard needs. No shell,
+# no editors, no destructive verbs (stop / set_option are deliberately omitted).
+Defaults:burrow !requiretty
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-checkconf
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control reload
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control reload_keep_cache
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control status
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control stats_noreset
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control list_forwards
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control flush *
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control flush_zone *
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control flush_type *
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control flush_negative
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control local_zone *
+burrow ALL=(root) NOPASSWD: /usr/sbin/unbound-control local_zone_remove *
+# Trigger a blocklist refresh in the background (downloads sources + reloads).
+burrow ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block burrow-blocklist-refresh.service

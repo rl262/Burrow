@@ -1,0 +1,82 @@
+# Burrow — /etc/unbound/unbound.conf.d/burrow-server.conf
+# Managed by Burrow (generated from /etc/burrow/burrow.conf at install time).
+#
+# Front-door recursive resolver: validates DNSSEC, ad-blocks via the generated
+# blocklist drop-in, forwards the public internet over DoT, and hands the local
+# forward + reverse zones to PowerDNS on 127.0.0.1@5300.
+
+server:
+    # ---- Listening + who is allowed to query --------------------------------
+    interface: ${LISTEN_IP}
+    port: 53
+    # Refuse everything by default; explicitly allow localhost + the LAN.
+    access-control: 0.0.0.0/0 refuse
+    access-control: ::0/0 refuse
+    access-control: 127.0.0.0/8 allow
+    access-control: ::1 allow
+    access-control: ${LAN_CIDR} allow
+
+    # ---- DNSSEC -------------------------------------------------------------
+    # Root trust anchor auto-maintained (RFC 5011). dns-root-data seeds
+    # /usr/share/dns/root.key; unbound copies/refreshes it here.
+    auto-trust-anchor-file: "/var/lib/unbound/root.key"
+
+    # ---- Let local zones reach PowerDNS, not Unbound's built-in defaults -----
+    # Unbound ships default local-zones for special-use names (home.arpa, the
+    # RFC1918 reverse zones, …) that answer NXDOMAIN *authoritatively* and would
+    # SHADOW the stub-zones below (a matching local-zone is consulted before any
+    # stub-zone). Drop the default for our local domain + unblock the RFC1918
+    # reverse zones so the stub-forward to PowerDNS takes effect. Mark them
+    # DNSSEC-insecure too: they are locally served and not in the global chain,
+    # so validation would otherwise fail (SERVFAIL).
+    local-zone: "${LOCAL_DOMAIN}." nodefault
+    domain-insecure: "${LOCAL_DOMAIN}."
+    unblock-lan-zones: yes
+    insecure-lan-zones: yes
+
+    # ---- Hardening ----------------------------------------------------------
+    hide-identity: yes
+    hide-version: yes
+    harden-glue: yes
+    harden-dnssec-stripped: yes
+    harden-referral-path: yes
+    harden-below-nxdomain: yes
+    use-caps-for-id: yes
+    # Send minimal QNAME to upstreams to leak less of the user's browsing.
+    qname-minimisation: yes
+    do-not-query-localhost: no
+
+    # ---- Cache TTL floor/ceiling --------------------------------------------
+    cache-min-ttl: 300
+    cache-max-ttl: 86400
+    # Serve slightly-stale answers if upstream is briefly unreachable.
+    serve-expired: yes
+    serve-expired-ttl: 3600
+    prefetch: yes
+    prefetch-key: yes
+
+    # ---- Logging (lightweight; journald captures it) ------------------------
+    log-queries: yes
+    log-replies: no
+    log-servfail: yes
+    use-syslog: yes
+
+    # NOTE: the blocklist include and the runtime allow/deny override include
+    # are intentionally in SEPARATE drop-ins (burrow-blocklist.conf and
+    # zz-burrow-overrides.conf) so lexical load order makes overrides win.
+
+# ---- Local authoritative data -> PowerDNS (127.0.0.1@5300) ------------------
+stub-zone:
+    name: "${LOCAL_DOMAIN}"
+    stub-addr: 127.0.0.1@5300
+    stub-prime: no
+    stub-no-cache: no
+
+# Reverse zone(s) for ${LAN_CIDR} -> PowerDNS (installer-expanded).
+${REVERSE_ZONES_STUB}
+
+# ---- Public internet over DoT (DNS-over-TLS) --------------------------------
+forward-zone:
+    name: "."
+    forward-tls-upstream: yes
+${UPSTREAMS_FORWARD_ADDRS}

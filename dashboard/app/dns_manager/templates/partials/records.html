@@ -1,0 +1,40 @@
+{% if error is defined and error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+<table class="rec">
+  <thead>
+    <tr><th>name</th><th>type</th><th class="acts" style="text-align:right">ttl</th><th>value(s)</th><th class="acts">actions</th></tr>
+  </thead>
+  <tbody>
+  {% for rr in rrsets %}
+    {% set hay = (rr.name ~ ' ' ~ rr.type ~ ' ' ~ (rr.records | join(' '))) | lower %}
+    {% if not q or (q | lower) in hay %}
+    <tr>
+      <td class="name">{{ rr.name }}</td>
+      <td><span class="type t-{{ rr.type | lower }}">{{ rr.type }}</span></td>
+      <td class="ttl">{{ rr.ttl }}</td>
+      <td class="val">
+        {% for c in rr.records %}<div>{{ c }}</div>{% endfor %}
+        {% if rr.comment %}<div class="cmt"># {{ rr.comment }}</div>{% endif %}
+      </td>
+      <td class="row-actions">
+        {% if rr.type != 'SOA' %}
+        <a class="mini" href="/zones/{{ zone_id }}?edit={{ rr.name }}:{{ rr.type }}" title="Edit this {{ rr.type }} record">edit</a>
+        <form method="post" action="/zones/{{ zone_id }}/flush" class="inline">
+          <input type="hidden" name="name" value="{{ rr.name }}"><button class="mini" title="Flush this name from the PowerDNS + Unbound caches">flush</button>
+        </form>
+        {% if not (rr.type == 'NS' and rr.name == zone_id) %}
+        <form method="post" action="/zones/{{ zone_id }}/rrsets/delete" class="inline"
+              onsubmit="return confirm('Delete {{ rr.type }} {{ rr.name }}?');">
+          <input type="hidden" name="name" value="{{ rr.name }}">
+          <input type="hidden" name="rtype" value="{{ rr.type }}">
+          <button class="mini danger" title="Delete this {{ rr.type }} record">del</button>
+        </form>
+        {% endif %}
+        {% else %}
+        <span class="lock">zone record</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endif %}
+  {% endfor %}
+  </tbody>
+</table>

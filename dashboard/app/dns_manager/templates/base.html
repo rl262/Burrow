@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_title }} manager{% endblock %}</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css?v={{ app_version }}">
+  <script>(function(){try{var t=localStorage.getItem('dnsm-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" defer></script>
+  <script src="/static/app.js?v={{ app_version }}" defer></script>
+</head>
+<body>
+{% set path = request.url.path %}
+<header class="topbar">
+  <div class="brand"><span class="c">{{ site_title }}</span><small>/dns</small></div>
+  <nav>
+    <a href="/" title="View and edit DNS records" class="{{ 'on' if path == '/' or path.startswith('/zones') }}">records</a>
+    {% if unbound_enabled %}<a href="/unbound" title="Resolver controls: cache, forwarders, blocklists, allow/deny" class="{{ 'on' if path.startswith('/unbound') }}">unbound</a>{% endif %}
+    {% if blocked_enabled %}<a href="/activity" title="Live feed of blocked requests" class="{{ 'on' if path.startswith('/activity') }}">activity</a>{% endif %}
+  </nav>
+  <div class="user">
+    <button type="button" class="theme-toggle" id="themeToggle" title="Switch light / dark theme" aria-label="Toggle light/dark theme"><span class="th-dark">dark</span><span class="th-light">light</span></button>
+    <span class="who">{{ user }}</span>
+    {% if auth_mode == 'password' %}<a href="/logout" class="muted" title="Sign out">logout</a>{% endif %}
+  </div>
+</header>
+
+{% if flashes %}
+<div class="flashes">
+  {% for f in flashes %}<div class="flash flash-{{ f.category }}">{{ f.message }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<main>{% block content %}{% endblock %}</main>
+
+<footer class="foot">Burrow v{{ app_version }} · PowerDNS + Unbound</footer>
+</body>
+</html>

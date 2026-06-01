@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+# Burrow — /usr/local/sbin/burrow-update-blocklist
+# Refresh the Unbound DNS blocklist from configured sources.
+#
+# Reads URLs from sources.txt and sources.d/*.txt, downloads each, normalises
+# domains from hosts / plain / AdBlock formats, applies the allowlist, validates
+# the resulting Unbound config, atomically swaps it in, and reloads Unbound.
+#
+# Fails CLOSED: if any step fails, the existing blocklist file is left in place
+# and Unbound keeps using the last good list.
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+from pathlib import Path
+
+BLOCKLIST_DIR = Path("/etc/unbound/blocklist.d")
+SOURCES_FILE = BLOCKLIST_DIR / "sources.txt"
+# Dashboard-added source lists drop in here (one URL per line, *.txt).
+SOURCES_DIR = BLOCKLIST_DIR / "sources.d"
+ALLOWLIST_FILE = BLOCKLIST_DIR / "allowlist.txt"
+OUTPUT_FILE = BLOCKLIST_DIR / "blocklist.conf"
+# Small world-readable status file the dashboard reads (no sudo needed).
+STATUS_FILE = BLOCKLIST_DIR / "status"
+
+# Valid DNS label characters (letters, digits, hyphen). Wildcards in source
+# lists (e.g. *.example.com) are converted to the parent domain.
+DOMAIN_RE = re.compile(
+    r"^(?=.{1,253}$)(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$"
+)
+HOSTS_SINK_RE = re.compile(r"^(0\.0\.0\.0|127\.0\.0\.1|::|::1)\s+")
+ADBLOCK_RE = re.compile(r"^\|\|([^\^/]+)\^?")
+
+
+def log(msg: str) -> None:
+    print(f"[burrow-blocklist] {msg}", flush=True)
+
+
+def die(msg: str, code: int = 1) -> None:
+    print(f"[burrow-blocklist] ERROR: {msg}", file=sys.stderr, flush=True)
+    sys.exit(code)
+
+
+def write_status(source_count: int, domain_count: int) -> None:
+    """Write a small world-readable status file for the dashboard."""
+    data = (
+        f"sources={source_count}\n"
+        f"domains={domain_count}\n"
+        f"updated={int(time.time())}\n"
+    )
+    fd, tmp = tempfile.mkstemp(dir=str(BLOCKLIST_DIR), prefix=".status.")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            fh.write(data)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, STATUS_FILE)
+    except Exception:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
+
+
+def read_lines(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    return [
+        line.strip()
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def fetch(url: str) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": "burrow-blocklist/1.0"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return resp.read().decode("utf-8", errors="replace")
+
+
+def extract_domain(raw: str) -> str | None:
+    """Pull a domain out of one line of any supported list format."""
+    line = raw.split("#", 1)[0].split("!", 1)[0].strip()
+    if not line:
+        return None
+
+    # AdBlock-style: ||example.com^
+    m = ADBLOCK_RE.match(line)
+    if m:
+        candidate = m.group(1)
+    elif HOSTS_SINK_RE.match(line):
+        # Hosts file: "0.0.0.0 example.com" (inline comment already stripped).
+        parts = line.split()
+        if len(parts) < 2:
+            return None
+        candidate = parts[1]
+    else:
+        # Plain domain or wildcard "*.example.com".
+        candidate = line.split()[0]
+
+    candidate = candidate.lower().lstrip("*.").rstrip(".")
+
+    # Skip localhost-ish entries that hosts files include by default.
+    if candidate in {"localhost", "localhost.localdomain", "broadcasthost", "local"}:
+        return None
+    if not DOMAIN_RE.match(candidate):
+        return None
+    return candidate
+
+
+def is_allowed(domain: str, allow_set: set[str]) -> bool:
+    """A domain is allowed if it equals or is a subdomain of any allowlist entry."""
+    if domain in allow_set:
+        return True
+    for allowed in allow_set:
+        if domain.endswith("." + allowed):
+            return True
+    return False
+
+
+def main() -> int:
+    sources = read_lines(SOURCES_FILE)
+    # Dashboard-added source lists live in sources.d/*.txt.
+    if SOURCES_DIR.is_dir():
+        for extra in sorted(SOURCES_DIR.glob("*.txt")):
+            sources.extend(read_lines(extra))
+    # De-duplicate while preserving order.
+    seen: set[str] = set()
+    sources = [u for u in sources if not (u in seen or seen.add(u))]
+    if not sources:
+        die(f"no sources configured in {SOURCES_FILE} or {SOURCES_DIR}")
+
+    allow_set = {d.lower().rstrip(".") for d in read_lines(ALLOWLIST_FILE)}
+
+    domains: set[str] = set()
+    for url in sources:
+        try:
+            body = fetch(url)
+        except Exception as exc:  # noqa: BLE001 — surface any fetch failure
+            log(f"WARN: failed to fetch {url}: {exc}")
+            continue
+        before = len(domains)
+        for line in body.splitlines():
+            domain = extract_domain(line)
+            if domain and not is_allowed(domain, allow_set):
+                domains.add(domain)
+        log(f"fetched {url}: +{len(domains) - before} new domains")
+
+    if not domains:
+        die("no domains extracted from any source — refusing to write empty blocklist")
+
+    # Atomically write the new blocklist to a tempfile next to the target, then
+    # validate via unbound-checkconf before swapping it in.
+    tmp = tempfile.NamedTemporaryFile(
+        mode="w",
+        dir=str(BLOCKLIST_DIR),
+        prefix=".blocklist.",
+        suffix=".tmp",
+        delete=False,
+    )
+    try:
+        tmp.write("# Auto-generated by burrow-update-blocklist. Do not edit.\n")
+        tmp.write(f"# Source count: {len(sources)}  Domain count: {len(domains)}\n")
+        for domain in sorted(domains):
+            tmp.write(f'local-zone: "{domain}." always_nxdomain\n')
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp.close()
+
+        # Stage the candidate under a parallel name so unbound-checkconf can
+        # read it via a tiny shim include before we touch the live file.
+        staging = BLOCKLIST_DIR / "blocklist.conf.new"
+        shutil.move(tmp.name, staging)
+
+        check_conf = tempfile.NamedTemporaryFile(mode="w", suffix=".conf", delete=False)
+        check_conf.write(f'server:\n    include: "{staging}"\n')
+        check_conf.close()
+        try:
+            subprocess.run(
+                ["unbound-checkconf", check_conf.name],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            staging.unlink(missing_ok=True)
+            die(f"unbound-checkconf failed:\n{exc.stderr}")
+        finally:
+            os.unlink(check_conf.name)
+
+        # World-readable: unbound re-reads its includes AS THE DROPPED-PRIVILEGE
+        # unbound user on `unbound-control reload`. tempfile defaults to 0600,
+        # which the unbound user can't read on reload — the daemon then FATALs
+        # and only survives because systemd restarts it (re-reading as root at
+        # startup). 0644 makes reloads succeed cleanly.
+        os.chmod(staging, 0o644)
+        os.replace(staging, OUTPUT_FILE)
+    finally:
+        # If we crashed before moving the tempfile, clean it up.
+        if os.path.exists(tmp.name):
+            os.unlink(tmp.name)
+
+    log(f"wrote {len(domains)} blocked domains to {OUTPUT_FILE}")
+
+    try:
+        subprocess.run(
+            ["unbound-control", "reload"], check=True, capture_output=True, text=True
+        )
+        log("reloaded unbound")
+    except subprocess.CalledProcessError as exc:
+        die(f"unbound-control reload failed:\n{exc.stderr}")
+
+    write_status(len(sources), len(domains))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

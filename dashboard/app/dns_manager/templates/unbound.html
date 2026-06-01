@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="unbound">
+  <h1>unbound resolver</h1>
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+
+  <div hx-get="/_partial/unbound_stats" hx-trigger="load, every 5s" hx-swap="innerHTML">
+    {% include "partials/unbound_stats.html" %}
+  </div>
+
+  {% if blocklist_enabled %}
+  <section class="sect">
+    <div class="sect-head">
+      <span><b>blocklists</b> — adlists</span>
+      <span class="n" hx-get="/_partial/blocklist_status" hx-trigger="load, every 5s" hx-swap="innerHTML">
+        {% include "partials/blocklist_status.html" %}
+      </span>
+    </div>
+    <div class="sect-body">
+      <div class="grid2" style="margin-top:0; grid-template-columns:1fr auto; align-items:stretch">
+        <form method="post" action="/unbound/blocklist/add" class="line" style="margin:0">
+          <input name="url" type="url" placeholder="https://example.com/blocklist.txt" required>
+          <button class="primary" title="Add this blocklist source URL (then Refresh now to download + apply it)">add list</button>
+        </form>
+        <form method="post" action="/unbound/blocklist/refresh" class="line" style="margin:0"
+              onsubmit="return confirm('Refresh blocklists now? Downloads every source list and reloads Unbound (a short DNS blip at the end).');">
+          <button title="Download every blocklist source and reload Unbound (brief DNS blip)">refresh now</button>
+        </form>
+      </div>
+
+      {% if blocklists %}
+      <table class="rec ovr">
+        <thead><tr><th>source list</th><th>origin</th><th class="acts">actions</th></tr></thead>
+        <tbody>
+        {% for b in blocklists %}
+          <tr>
+            <td class="name">{{ b.url }}</td>
+            <td><span class="type {{ 't-cname' if b.source == 'gui' else 't-soa' }}">{{ b.source }}</span></td>
+            <td class="row-actions">
+              {% if b.source == 'gui' %}
+              <form method="post" action="/unbound/blocklist/remove" class="inline">
+                <input type="hidden" name="url" value="{{ b.url }}"><button class="mini danger" title="Remove this GUI-added blocklist (Refresh now to drop its domains)">remove</button>
+              </form>
+              {% else %}<span class="lock">base</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" style="margin-bottom:0">No blocklists configured.</p>
+      {% endif %}
+      <p class="hint" style="margin-bottom:0">base lists are installer-managed (read-only here); gui lists are added here and merged into the blocklist on refresh. Add/remove takes effect on the next refresh.</p>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="panel-row">
+    <section class="sect">
+      <div class="sect-head"><span><b>cache</b></span></div>
+      <div class="sect-body">
+        <form method="post" action="/unbound/flush" class="line">
+          <input name="name" placeholder="name to flush (e.g. example.com)" required>
+          <button class="primary" title="Flush this name from the Unbound resolver cache">flush name</button>
+        </form>
+        <div class="btnbar">
+          <form method="post" action="/unbound/flush_negative" class="inline"><button title="Drop cached NXDOMAIN / negative answers">flush negative cache</button></form>
+          <form method="post" action="/unbound/reload" class="inline"
+                onsubmit="return confirm('Reload Unbound? A reload re-parses the full blocklist and briefly restarts the resolver (a short DNS blip). Allow/deny do NOT need this.');">
+            <button class="danger" title="Reload Unbound and flush the entire cache — briefly restarts the resolver (brief DNS blip)">reload (flush all)</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="sect">
+      <div class="sect-head"><span><b>forwarders</b></span><span class="n hint">read-only — managed by the system config</span></div>
+      <div class="sect-body">
+        {% if forwards %}<pre class="fwd">{% for f in forwards %}{{ f }}
+{% endfor %}</pre>{% else %}<p class="muted">none reported</p>{% endif %}
+      </div>
+    </section>
+  </div>
+
+  <section class="sect">
+    <div class="sect-head"><span><b>blocklist</b> overrides</span></div>
+    <div class="sect-body">
+      <p class="hint" style="margin-top:0">allow = un-block a falsely-blocked domain · block = manually NXDOMAIN a domain.
+         Persisted in an Unbound include loaded after the blocklist, so they survive the nightly refresh.</p>
+      <div class="grid2" style="margin-top:0; grid-template-columns:1fr 1fr; align-items:stretch">
+        <form method="post" action="/unbound/allow" class="line" style="margin:0">
+          <input name="domain" placeholder="domain to allow (un-block)" required>
+          <button class="primary" title="Un-block this domain — overrides the blocklist (takes effect instantly)">allow</button>
+        </form>
+        <form method="post" action="/unbound/deny" class="line" style="margin:0">
+          <input name="domain" placeholder="domain to block" required>
+          <button class="danger" title="Manually block this domain (NXDOMAIN) — takes effect instantly">block</button>
+        </form>
+      </div>
+
+      {% if overrides %}
+      <table class="rec ovr">
+        <thead><tr><th>domain</th><th>effect</th><th class="acts">actions</th></tr></thead>
+        <tbody>
+        {% for o in overrides %}
+          <tr>
+            <td class="name">{{ o.name }}</td>
+            <td><span class="type {{ 't-cname' if o.kind == 'allow' else 't-block' }}">{{ 'allow' if o.kind == 'allow' else 'block' }}</span></td>
+            <td class="row-actions">
+              <form method="post" action="/unbound/override/remove" class="inline">
+                <input type="hidden" name="domain" value="{{ o.name }}"><button class="mini danger" title="Remove this allow/block override">remove</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted" style="margin-bottom:0">No manual overrides.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if status %}
+  <section class="sect">
+    <div class="sect-head"><span><b>status</b></span></div>
+    <div class="sect-body">
+      <div class="kv">
+        {% for k in ['version', 'verbosity', 'threads', 'modules', 'uptime'] %}
+          {% if status.get(k) %}<div><span>{{ k }}</span>{{ status.get(k) }}</div>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

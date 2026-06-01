@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local secrets / generated config (never commit)
+*.secret
+burrow.conf
+dashboard.env
+*.env
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Build / test scratch
+/tmp/
+*.log

@@ -1,0 +1,55 @@
+# /etc/burrow/pdns.conf
+# Burrow authoritative DNS (PowerDNS) configuration.
+# Rendered at install time by the
+# Burrow bash installer: it sources /etc/burrow/burrow.conf and substitutes the
+# ${...} placeholders (envsubst). PowerDNS does NOT expand ${VAR} itself.
+#
+# Role in the Burrow stack:
+#   Unbound (:53)  = recursive resolver + ad-block + DoT upstreams (front door)
+#   PowerDNS       = authoritative for the LOCAL forward + reverse zones only,
+#                    listening on 127.0.0.1:5300. Unbound stub-forwards the
+#                    local zones here. PowerDNS is never exposed to the LAN.
+#
+# File should be owned root:burrow, mode 0640 (contains secrets).
+
+#################################
+# Backend: MySQL/MariaDB (gmysql) only.
+launch=gmysql
+
+gmysql-host=127.0.0.1
+gmysql-port=3306
+gmysql-user=pdns
+gmysql-password=${PDNS_DB_PASSWORD}
+gmysql-dbname=pdns
+
+#################################
+# Listen on loopback only. Unbound forwards local zones to 127.0.0.1@5300.
+local-address=127.0.0.1
+local-port=5300
+
+#################################
+# HTTP REST API + webserver (consumed by the Burrow dashboard on the same host).
+api=yes
+api-key=${PDNS_API_KEY}
+webserver=yes
+webserver-address=127.0.0.1
+webserver-port=8081
+# Dashboard runs on the same host, so only loopback may reach the API.
+webserver-allow-from=127.0.0.1
+
+#################################
+# Default SOA used for newly created zones.
+# Format: <primary-ns> <hostmaster> <serial> <refresh> <retry> <expire> <minimum>
+# The bootstrap script sets explicit SOA/NS per zone via pdnsutil; this is the
+# fallback for any zone created without one.
+default-soa-content=ns.${LOCAL_DOMAIN} hostmaster.${LOCAL_DOMAIN} 1 10800 3600 604800 3600
+
+#################################
+# Operational hygiene.
+setgid=pdns
+setuid=pdns
+# Native zones (no DNS NOTIFY / AXFR to anyone) — Burrow is a single-host stack.
+primary=no
+secondary=no
+# Reduce log noise; bump to a higher value when debugging.
+loglevel=4

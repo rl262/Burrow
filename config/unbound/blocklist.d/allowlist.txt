@@ -1,0 +1,10 @@
+# Burrow allowlist — domains that must NEVER be blocked, even if a source list
+# contains them. One domain per line. Subdomains of each entry are also
+# allowed (e.g. "example.com" also allows "cdn.example.com").
+#
+# After editing, run: /usr/local/sbin/burrow-update-blocklist
+#
+# Common false positives you may want to uncomment:
+# s.youtube.com
+# clients4.google.com
+# graph.facebook.com

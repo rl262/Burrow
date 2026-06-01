@@ -1,0 +1,43 @@
+[Unit]
+Description=Burrow dashboard (PowerDNS records + Unbound control web UI)
+After=network-online.target pdns.service unbound.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=burrow
+Group=burrow
+WorkingDirectory=/opt/burrow
+EnvironmentFile=/etc/burrow/dashboard.env
+ExecStart=/opt/burrow/venv/bin/uvicorn dns_manager.main:app \
+    --host ${DASHBOARD_BIND} \
+    --port ${DASHBOARD_PORT} \
+    --log-level info
+Restart=on-failure
+RestartSec=5
+
+# Hardening. NoNewPrivileges is intentionally NOT set: the dashboard escalates
+# via sudo to run unbound-control / unbound-checkconf (see /etc/sudoers.d/burrow).
+# ProtectSystem=full keeps /etc and /usr read-only; we carve out only the exact
+# paths the app must write.
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+# Writable carve-outs:
+#   /var/lib/burrow              -> app state
+#   /var/lib/unbound/burrow      -> the app-owned Unbound override include
+#                                   (must be daemon-readable: AppArmor permits
+#                                   /var/lib/unbound/**, /etc would be blocked
+#                                   by both ProtectSystem=full and AppArmor)
+#   /etc/unbound/blocklist.d/sources.d -> GUI-added blocklist URLs overlay
+#                                   (under /etc, which ProtectSystem=full makes
+#                                   read-only, so it needs an explicit RW path)
+ReadWritePaths=/var/lib/burrow /var/lib/unbound/burrow /etc/unbound/blocklist.d/sources.d
+
+# The live 'activity' feed tails the Unbound journal. That requires the burrow
+# user to be a member of the systemd-journal group (added by the installer):
+#   usermod -aG systemd-journal burrow
+# (group membership is granted at the OS level, not in this unit).
+
+[Install]
+WantedBy=multi-user.target

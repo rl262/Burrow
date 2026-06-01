@@ -1,0 +1,16 @@
+# Burrow — /etc/systemd/system/burrow-blocklist-refresh.service
+[Unit]
+Description=Refresh Burrow (Unbound) DNS blocklist from configured sources
+After=network-online.target unbound.service
+Wants=network-online.target
+Requires=unbound.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/burrow-update-blocklist
+# Hardening — the script only needs to write the blocklist dir and call
+# unbound-control over /run/unbound.ctl.
+ProtectSystem=full
+ReadWritePaths=/etc/unbound/blocklist.d
+NoNewPrivileges=true
+PrivateTmp=true

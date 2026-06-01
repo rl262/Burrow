@@ -1,0 +1,45 @@
+<div class="stat-cards">
+  <div class="card"><div class="num">{{ '{:,}'.format(stats.blocked_10m) }}</div><div class="lbl">blocked · 10 min</div></div>
+  <div class="card"><div class="num">{{ '{:,}'.format(stats.blocked_1h) }}</div><div class="lbl">blocked · 1 hr</div></div>
+  <div class="card"><div class="num">{{ '{:,}'.format(stats.unique_domains) }}</div><div class="lbl">domains · 1 hr</div></div>
+  <div class="card"><div class="num">{{ '{:,}'.format(stats.unique_clients) }}</div><div class="lbl">clients · 1 hr</div></div>
+</div>
+
+<section class="sect spark-sect">
+  <div class="sect-head"><span><b>blocks / minute</b></span><span class="n hint">last 30 min · peak {{ stats.per_minute_max }}</span></div>
+  <div class="sect-body">
+    {% set pmax = stats.per_minute_max or 1 %}
+    <div class="spark">
+      {% for v in stats.per_minute %}<span class="bar" style="height: {{ (3 + (v / pmax * 45)) | round }}px" title="{{ v }} / min"></span>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<div class="top-row">
+  <section class="sect">
+    <div class="sect-head"><span><b>top blocked domains</b></span><span class="n hint">last hour</span></div>
+    <div class="sect-body">
+      {% if stats.top_domains %}
+      {% set dmax = stats.top_domains[0][1] %}
+      <table class="rec barlist"><tbody>
+      {% for d, c in stats.top_domains %}
+        <tr><td class="bl-name"><span class="bar-fill" style="width: {{ (c / dmax * 100) | round }}%"></span><span class="bl-label">{{ d }}</span></td><td class="bl-count">{{ '{:,}'.format(c) }}</td></tr>
+      {% endfor %}
+      </tbody></table>
+      {% else %}<p class="muted" style="margin:0">no data yet</p>{% endif %}
+    </div>
+  </section>
+  <section class="sect">
+    <div class="sect-head"><span><b>top clients</b></span><span class="n hint">last hour</span></div>
+    <div class="sect-body">
+      {% if stats.top_clients %}
+      {% set cmax = stats.top_clients[0][1] %}
+      <table class="rec barlist"><tbody>
+      {% for ip, c in stats.top_clients %}
+        <tr><td class="bl-name"><span class="bar-fill" style="width: {{ (c / cmax * 100) | round }}%"></span><span class="bl-label">{{ ip }}</span></td><td class="bl-count">{{ '{:,}'.format(c) }}</td></tr>
+      {% endfor %}
+      </tbody></table>
+      {% else %}<p class="muted" style="margin:0">no data yet</p>{% endif %}
+    </div>
+  </section>
+</div>

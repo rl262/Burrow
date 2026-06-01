@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="activity">
+  <div class="zone-head">
+    <h1>blocked requests</h1>
+    <div class="meta">command center ·
+      {% if stats.alive %}<span class="bl-refreshing">● live</span>{% else %}<span class="muted">○ monitor offline</span>{% endif %}
+      · rolling window of {{ '{:,}'.format(stats.buffer_max) }} events</div>
+  </div>
+
+  <div hx-get="/_partial/blocked_stats" hx-trigger="load, every 5s" hx-swap="innerHTML">
+    {% include "partials/blocked_stats.html" %}
+  </div>
+
+  <section class="sect feed-sect">
+    <div class="sect-head"><span><b>recent blocks</b></span><span class="n hint">live · newest first · server time</span></div>
+    <div id="blocked-feed" hx-get="/_partial/blocked_feed" hx-trigger="load, every 2s" hx-swap="innerHTML">
+      {% include "partials/blocked_feed.html" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

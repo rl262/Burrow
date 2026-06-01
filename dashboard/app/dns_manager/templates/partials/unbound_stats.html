@@ -1,0 +1,10 @@
+{% set q = stats.get('total.num.queries', '0') | float %}
+{% set hits = stats.get('total.num.cachehits', '0') | float %}
+{% set miss = stats.get('total.num.cachemiss', '0') | float %}
+{% set up = stats.get('time.up', '0') | float %}
+<div class="stat-cards">
+  <div class="card"><div class="num">{{ '%.0f' | format(q) }}</div><div class="lbl">queries</div></div>
+  <div class="card"><div class="num">{{ '%.1f%%' | format(100 * hits / (hits + miss)) if (hits + miss) > 0 else '—' }}</div><div class="lbl">cache hit rate</div></div>
+  <div class="card"><div class="num">{{ '%.0f' | format(miss) }}</div><div class="lbl">cache miss</div></div>
+  <div class="card"><div class="num">{{ '%.0f' | format(up / 3600) }}h</div><div class="lbl">uptime</div></div>
+</div>

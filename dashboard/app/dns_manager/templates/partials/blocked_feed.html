@@ -1,0 +1,16 @@
+<table class="rec feed">
+  <thead><tr><th class="ttl">time</th><th>client</th><th>domain</th><th>type</th></tr></thead>
+  <tbody>
+  {% for e in recent %}
+    <tr>
+      <td class="ttl">{{ e.hms }}</td>
+      <td class="name">{{ e.client }}</td>
+      <td class="val">{{ e.domain }}</td>
+      <td><span class="type t-{{ e.qtype | lower }}">{{ e.qtype }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not recent %}
+<p class="muted feed-empty">{% if stats.alive %}No blocks captured yet — waiting for the next blocked query…{% else %}Monitor offline — the app can't read the journal (needs systemd-journal group + a restart).{% endif %}</p>
+{% endif %}

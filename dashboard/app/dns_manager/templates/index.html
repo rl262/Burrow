@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="layout">
+  <aside class="sect zones">
+    <div class="sect-head"><span><b>zones</b></span><span class="n">{{ zones|length }}</span></div>
+    <ul>
+      {% for z in zones %}
+      <li class="{{ 'sel' if selected and z.name == selected.name }}">
+        <a href="/zones/{{ z.name }}">{{ z.name }}</a>
+        <span class="badge">{{ z.kind }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  <section class="records">
+    {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+    {% if selected %}
+    <div class="zone-head">
+      <h1>{{ selected.name }}</h1>
+      <div class="meta">serial <b>{{ selected.serial }}</b> · {{ selected.kind|lower }} · <b>{{ rrsets|length }}</b> rrsets</div>
+    </div>
+
+    <form class="sect rr-form {{ 'editing' if edit_rr }}" method="post" action="/zones/{{ zone_id }}/rrsets">
+      <div class="sect-head"><span>{% if edit_rr %}<b>edit</b> record{% else %}<b>add</b> / replace record{% endif %}</span></div>
+      <div class="sect-body">
+        <div class="grid3">
+          <div class="field">
+            <span class="lbl"><b>name</b></span>
+            <div class="inrow"><span class="pr">&gt;</span>
+              <input name="name" placeholder="www · @ for apex"
+                     value="{{ edit_rr.name if edit_rr else '' }}" {{ 'readonly' if edit_rr }}>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lbl"><b>type</b></span>
+            <select name="rtype" {{ 'disabled' if edit_rr }}>
+              {% for t in editable_types %}
+              <option value="{{ t }}" {{ 'selected' if edit_rr and edit_rr.type == t }}>{{ t }}</option>
+              {% endfor %}
+            </select>
+            {% if edit_rr %}<input type="hidden" name="rtype" value="{{ edit_rr.type }}">{% endif %}
+          </div>
+          <div class="field">
+            <span class="lbl"><b>ttl</b></span>
+            <input name="ttl" type="number" min="0" value="{{ edit_rr.ttl if edit_rr else 3600 }}">
+          </div>
+        </div>
+
+        <label>
+          <span class="lbl"><b>value(s)</b> <span class="hint">— {% if edit_rr %}full set, replaces all values for this record{% else %}one per line, merged into any existing record of this name+type{% endif %}</span></span>
+          <textarea name="content" rows="3" placeholder="192.168.1.20   (A)&#10;nginx.home.arpa.   (CNAME / PTR target)">{{ edit_rr.records | join('\n') if edit_rr else '' }}</textarea>
+        </label>
+
+        <div class="grid2">
+          <div class="field">
+            <span class="lbl"><b>comment</b></span>
+            <input name="comment" value="{{ edit_rr.comment if edit_rr else '' }}" placeholder="optional note">
+          </div>
+          <label class="check"><input type="checkbox" name="create_ptr" value="1"> also create matching PTR <span class="hint">(A only)</span></label>
+        </div>
+
+        {% if edit_rr %}<input type="hidden" name="is_edit" value="1">{% endif %}
+        <div class="actions">
+          <button type="submit" class="primary" title="{{ 'Replace this record with the values above (full-set REPLACE)' if edit_rr else 'Create the record, or merge these values into an existing name + type' }}">{{ 'save changes' if edit_rr else 'save record' }}</button>
+          {% if edit_rr %}<a class="btn" href="/zones/{{ zone_id }}" title="Discard changes and clear the form">cancel</a>{% endif %}
+        </div>
+      </div>
+    </form>
+
+    <div class="filter">
+      <input type="search" name="q" placeholder="filter records" value="{{ q }}"
+             hx-get="/_partial/records/{{ zone_id }}" hx-target="#rec-table"
+             hx-trigger="keyup changed delay:200ms, search" hx-include="this">
+    </div>
+    <div class="sect" id="rec-table">
+      {% include "partials/records.html" %}
+    </div>
+    {% else %}
+    <div class="sect"><div class="sect-body muted">No zone selected.</div></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

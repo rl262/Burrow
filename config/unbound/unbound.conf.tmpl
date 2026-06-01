@@ -1,0 +1,18 @@
+# Burrow — /etc/unbound/unbound.conf
+# Managed by Burrow. All Burrow configuration lives in drop-ins under
+# /etc/unbound/unbound.conf.d/*.conf (loaded by the include-toplevel glob below).
+#
+# See unbound.conf(5) and /usr/share/doc/unbound/examples/unbound.conf.
+
+# Load every drop-in. Files are applied in lexical order, which is why the
+# runtime allow/deny overrides are named "zz-..." so they load LAST and win.
+include-toplevel: "/etc/unbound/unbound.conf.d/*.conf"
+
+server:
+    # Monitoring: extended stats are cumulative, queried via unbound-control.
+    extended-statistics: yes
+    statistics-interval: 0
+    statistics-cumulative: yes
+    # Light query logging so the dashboard / journald can count queries.
+    verbosity: 1
+    log-queries: yes

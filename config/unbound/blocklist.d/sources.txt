@@ -1,0 +1,15 @@
+# Burrow blocklist sources — one URL per line. Blank lines and #comments
+# ignored. hosts-file, plain-domain, and AdBlock (||domain^) formats are all
+# accepted; burrow-update-blocklist normalizes them.
+#
+# Edit this file (or let the dashboard drop lists into sources.d/*.txt) then
+# run: /usr/local/sbin/burrow-update-blocklist
+
+# StevenBlack unified hosts (ads + malware). Broad, well-maintained.
+https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+
+# OISD Big — large general-purpose ad/tracking/malware list (wildcard form).
+https://big.oisd.nl/domainswild
+
+# HaGeZi Threat Intelligence Feeds (medium) — malware/phishing/scam domains.
+https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.medium.txt

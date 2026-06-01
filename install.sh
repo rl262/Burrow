@@ -168,7 +168,10 @@ apt-get install -y -qq \
   unbound dns-root-data ca-certificates \
   pdns-server pdns-backend-mysql mariadb-server \
   python3 python3-venv python3-pip \
-  curl gettext-base openssl iproute2 dnsutils
+  curl gettext-base openssl iproute2 dnsutils sudo
+# sudo is required at runtime: the dashboard escalates to run unbound-control via
+# /etc/sudoers.d/burrow. It's pre-installed on most VMs but absent from minimal
+# images, so install it explicitly.
 
 # ---------------------------------------------------------------------------
 # user, group, directories
@@ -358,6 +361,7 @@ umask 022
 
 envsubst '${DASHBOARD_BIND} ${DASHBOARD_PORT}' \
   <"$SRC/dashboard/deploy/burrow-dashboard.service.tmpl" >/etc/systemd/system/burrow-dashboard.service
+install -d -m 0755 /etc/sudoers.d   # ensure the drop-in dir exists (sudo just installed)
 install -o root -g root -m 0440 "$SRC/dashboard/deploy/sudoers.burrow" /etc/sudoers.d/burrow
 visudo -cf /etc/sudoers.d/burrow >/dev/null || die "sudoers validation failed"
 

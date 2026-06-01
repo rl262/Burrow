@@ -359,7 +359,7 @@ No telemetry, no phone-home. Resolution happens on your box; public queries are 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for planned work — Authentik SSO (planned), dashboard-managed upstreams, IPv6, multiple LAN subnets, backup/restore, and more.
+See [ROADMAP.md](ROADMAP.md) for planned work, sequenced toward Pi-hole parity — secondary/failover, persistent query stats, per-client groups, "pause blocking", regex rules, arm64, backup/restore, Authentik SSO, and more.
 
 ## License
 

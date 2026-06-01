@@ -11,6 +11,10 @@ Three modes (settings.auth_mode), enforced by a middleware in main.py:
 
 Paths that must never require auth (health checks, the login form, static
 assets) are listed in EXEMPT_PREFIXES.
+
+NOTE: the installer currently wires up only `password`. The `none` and
+`authentik` modes are implemented here but not yet configured by install.sh —
+Authentik SSO is planned (see ROADMAP.md), not dead code.
 """
 
 from __future__ import annotations

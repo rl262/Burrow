@@ -357,6 +357,10 @@ No telemetry, no phone-home. Resolution happens on your box; public queries are 
 - **Upstream visibility.** Burrow forwards public queries to your chosen DoT resolvers — encrypted in transit, but those providers do see the queries. Pick upstreams you trust (or reconfigure Unbound for full recursion).
 - **Secrets** (PowerDNS API key, session secret, admin password) live in `/etc/burrow/*.conf`, mode `0640 root:burrow`, generated per install and never committed.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned work — Authentik SSO (planned), dashboard-managed upstreams, IPv6, multiple LAN subnets, backup/restore, and more.
+
 ## License
 
 [MIT](LICENSE) © Ron Lima. Built on the excellent [Unbound](https://nlnetlabs.nl/projects/unbound/) and [PowerDNS](https://www.powerdns.com/) projects.

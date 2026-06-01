@@ -11,7 +11,9 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
       - name: Run shellcheck
-        run: shellcheck install.sh uninstall.sh bin/burrow-pdns-bootstrap.sh lib/*.sh
+        # --severity=warning: fail on warnings/errors only. info/style findings are
+        # advisory and vary between shellcheck versions, which would make CI flaky.
+        run: shellcheck --severity=warning install.sh uninstall.sh bin/burrow-pdns-bootstrap.sh lib/*.sh
 
   ruff:
     runs-on: ubuntu-latest

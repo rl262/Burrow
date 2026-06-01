@@ -5,4 +5,6 @@ external-sources=true
 # SC2016: Burrow templates configs with envsubst, which REQUIRES the var list to be
 #   single-quoted (e.g. envsubst '${FOO} ${BAR}') so the shell does NOT expand it
 #   first — single quotes there are intentional, not a bug.
-disable=SC1090,SC1091,SC2016
+# SC2015: the `cmd >/dev/null 2>&1 && action || true` best-effort idiom is deliberate
+#   (C is just `true`, so the "A && B || C is not if-then-else" caveat doesn't apply).
+disable=SC1090,SC1091,SC2016,SC2015

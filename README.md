@@ -2,7 +2,7 @@
 
 # 🐇 Burrow
 
-**A self-hosted, full-stack DNS server with ad-blocking and a web dashboard — a more capable Pi-hole alternative.**
+**A self-hosted, full-stack DNS server with ad-blocking and a web dashboard — inspired by Pi-hole.**
 
 Recursive resolver · authoritative local DNS · ad/tracker blocklists · a records editor · a live blocked-request command center — one `install.sh`, no cloud, no telemetry.
 
@@ -36,23 +36,15 @@ Recursive resolver · authoritative local DNS · ad/tracker blocklists · a reco
 
 ## What is Burrow?
 
-Pi-hole is a DNS sinkhole. Burrow is that **plus a real DNS server**: it runs **Unbound** as a validating resolver (DNSSEC, ad/tracker blocklists, encrypted DNS-over-TLS to your chosen upstreams) *and* **PowerDNS** as an authoritative server for your own local zone — all managed from a single fast, keyboard-friendly web dashboard.
+Burrow brings network-wide ad-blocking and a full DNS server together in one box. It runs **Unbound** as a validating recursive resolver (DNSSEC, ad/tracker blocklists, encrypted DNS-over-TLS to your chosen upstreams) *and* **PowerDNS** as an authoritative server for your own local zone — so your devices get stable names like `nas.home.arpa` plus reverse (PTR) lookups — all managed from a single fast, keyboard-friendly web dashboard.
 
-| | Pi-hole | **Burrow** |
-|---|:---:|:---:|
-| Network-wide ad/tracker blocking | ✅ | ✅ |
-| Add/remove blocklists (adlists) | ✅ | ✅ |
-| Live query/block activity view | ✅ | ✅ |
-| DNSSEC-validating resolver | via add-on | ✅ Unbound |
-| Encrypted upstreams (DNS-over-TLS) | ⚠️ | ✅ |
-| **Authoritative local DNS + full records editor** | ⚠️ basic | ✅ PowerDNS (A/AAAA/CNAME/PTR/MX/TXT/SRV/NS/CAA) |
-| Per-record cache flush · reverse-PTR helper | ❌ | ✅ |
+It's inspired by Pi-hole, built around a full recursive + authoritative DNS server.
 
 ## Features
 
 - **Records** — full CRUD over your local zones via the PowerDNS HTTP API, all common record types, with a reverse-PTR auto-helper and per-record cache flush.
 - **Unbound** — DNSSEC validation, DoT upstreams, cache controls, and **allow/deny overrides** that take effect instantly (no resolver restart).
-- **Blocklists** — add/remove adlist source URLs and refresh on demand (Pi-hole's "adlists" + "gravity").
+- **Blocklists** — add/remove adlist source URLs and refresh on demand (familiar if you're coming from Pi-hole's adlists).
 - **Activity** — a live, terminal-style command center: blocked-request feed, blocks-per-minute, top blocked domains and top clients.
 - **Dashboard** — a fast, dependency-light web UI (FastAPI + HTMX) with a dark/light "phosphor" theme and password login.
 

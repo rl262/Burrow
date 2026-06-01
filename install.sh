@@ -2,7 +2,7 @@
 # Burrow installer — a self-hosted, full-stack DNS server with ad-blocking and a
 # web dashboard (recursive Unbound + authoritative PowerDNS + the dashboard).
 #
-#   curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.1/install.sh -o /tmp/burrow.sh \
+#   curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.2/install.sh -o /tmp/burrow.sh \
 #     && sudo bash /tmp/burrow.sh
 #
 # Piping `curl ... | sudo bash` works too, but runs NON-INTERACTIVELY: stdin is
@@ -33,7 +33,7 @@ DASHBOARD_PORT=8088
 # the pinned release tag so `curl | bash` installs are reproducible (a push to
 # main never silently changes what new installs get). Override with
 # BURROW_REF=main (or any tag/branch/SHA) for bleeding-edge.
-BURROW_VERSION="0.1.0-alpha.1"   # keep in sync with dashboard/app/dns_manager/__init__.py
+BURROW_VERSION="0.1.0-alpha.2"   # keep in sync with dashboard/app/dns_manager/__init__.py
 BURROW_REF="${BURROW_REF:-v${BURROW_VERSION}}"
 REPO_TARBALL="https://github.com/rl262/Burrow/archive/${BURROW_REF}.tar.gz"
 

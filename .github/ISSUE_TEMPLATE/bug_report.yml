@@ -19,7 +19,7 @@ body:
     attributes:
       label: Burrow version
       description: "Output of: cat /etc/burrow/VERSION  (or the tag/commit you installed)"
-      placeholder: "burrow 0.1.0-alpha.1 (ref v0.1.0-alpha.1)"
+      placeholder: "burrow 0.1.0-alpha.2 (ref v0.1.0-alpha.2)"
     validations:
       required: true
   - type: input

@@ -61,8 +61,13 @@ jobs:
           echo "::group::local forward zone resolves"
           docker exec burrow bash -c "dig @127.0.0.1 ns.home.arpa +short | grep -qE '^[0-9]+\.'"
           echo "::endgroup::"
-          echo "::group::dashboard health"
-          docker exec burrow curl -fsS http://127.0.0.1:8088/healthz
+          echo "::group::dashboard health (wait for uvicorn to bind)"
+          ok=0
+          for _ in $(seq 1 20); do
+            if docker exec burrow curl -fsS http://127.0.0.1:8088/healthz; then ok=1; break; fi
+            sleep 1
+          done
+          [ "$ok" = 1 ] || { echo "dashboard did not come up on :8088"; exit 1; }
           echo "::endgroup::"
 
       - name: Idempotency — re-run the installer

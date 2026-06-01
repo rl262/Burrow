@@ -7,4 +7,4 @@ static assets (/static/style.css?v=__version__). Bump it whenever the bundled
 templates/CSS/JS change.
 """
 
-__version__ = "1.0.0-alpha"
+__version__ = "0.1.0-alpha.1"

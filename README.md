@@ -8,7 +8,7 @@ Recursive resolver · authoritative local DNS · ad/tracker blocklists · a reco
 
 </div>
 
-> ⚠️ **Status: alpha / work in progress.** Test on a throwaway VM before pointing real clients at it.
+> ⚠️ **Status: alpha (`v0.1.0-alpha.1`) — validated on Ubuntu 24.04.** Test on a throwaway VM before pointing real clients at it.
 
 ---
 
@@ -75,7 +75,7 @@ Pi-hole is a DNS sinkhole. Burrow is that **plus a real DNS server**: it runs **
 
 ## Requirements & pre-flight
 
-- **OS:** Debian 12/13 or Ubuntu 22.04/24.04 (`amd64`/`arm64`). The installer hard-aborts on anything else.
+- **OS:** **Validated end-to-end on Ubuntu 24.04.** Debian 12/13, Ubuntu 22.04, and arm64 are *supported* (the installer runs there) but **not yet fully validated** — please [report issues](https://github.com/rl262/Burrow/issues). The installer hard-aborts on anything outside Debian/Ubuntu.
 - **Root:** run via `sudo` — it installs packages, writes `/etc`, and manages systemd units.
 - **A static IP** (strongly recommended) — your clients will point their DNS at this box, so its address must not change.
 - **Resources:** ~512 MB RAM and ~2 GB disk (MariaDB + the blocklists; the default lists are ~840k domains).
@@ -89,21 +89,23 @@ Burrow installs with one script. **The interactive prompts only appear when the 
 **A) Interactive (recommended for your first install)** — download, then run, so you get the prompts:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/main/install.sh -o /tmp/burrow-install.sh && sudo bash /tmp/burrow-install.sh
+curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.1/install.sh -o /tmp/burrow-install.sh && sudo bash /tmp/burrow-install.sh
 ```
 
 **B) One-liner, non-interactive** — runs straight through with all defaults (loopback dashboard + an auto-generated admin password printed at the end). You still see every step, just no prompts:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.1/install.sh | sudo bash
 ```
 
 **C) Non-interactive but with your own settings** — set any of the prompt values as environment variables and they win over the defaults (no prompting):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/main/install.sh \
+curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.1/install.sh \
   | sudo LOCAL_DOMAIN=home.arpa LAN_CIDR=192.168.1.0/24 DASHBOARD_BIND=0.0.0.0 ADMIN_PASSWORD='choose-a-strong-one' bash
 ```
+
+> **Pinned installs.** These commands fetch a specific release tag (`v0.1.0-alpha.1`), so what you install is reproducible — a push to `main` never silently changes a new install. To install the latest unreleased `main` instead, fetch `…/main/install.sh` **and** pass `BURROW_REF=main` (the installer pins the source tree it downloads to `BURROW_REF`, which defaults to the release tag). Released versions are on the [Releases page](https://github.com/rl262/Burrow/releases).
 
 When it finishes, the installer prints the dashboard URL and (if it generated the password) the password. Then [point your clients at it](#post-install-point-your-network-at-burrow--verify).
 

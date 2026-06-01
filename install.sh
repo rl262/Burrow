@@ -2,9 +2,15 @@
 # Burrow installer — a self-hosted, full-stack DNS server with ad-blocking and a
 # web dashboard (recursive Unbound + authoritative PowerDNS + the dashboard).
 #
-#   curl -sSL https://raw.githubusercontent.com/rl262/Burrow/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.1/install.sh -o /tmp/burrow.sh \
+#     && sudo bash /tmp/burrow.sh
 #
-# Idempotent: safe to re-run. Tested on Debian 12/13 and Ubuntu 22.04/24.04.
+# Piping `curl ... | sudo bash` works too, but runs NON-INTERACTIVELY: stdin is
+# the pipe, so the prompts are skipped and defaults are used. Download-then-run
+# (above) or pass values as env vars to choose settings. See the README.
+#
+# Idempotent: safe to re-run. Validated end-to-end on Ubuntu 24.04; Debian 12/13,
+# Ubuntu 22.04, and arm64 are supported but NOT yet fully validated.
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -23,7 +29,13 @@ UNBOUND_CONTROL=/usr/sbin/unbound-control
 UNBOUND_CHECKCONF=/usr/sbin/unbound-checkconf
 PDNS_API_URL=http://127.0.0.1:8081
 DASHBOARD_PORT=8088
-REPO_TARBALL="https://github.com/rl262/Burrow/archive/refs/heads/main.tar.gz"
+# Version + the git ref the installer fetches its source tree from. Defaults to
+# the pinned release tag so `curl | bash` installs are reproducible (a push to
+# main never silently changes what new installs get). Override with
+# BURROW_REF=main (or any tag/branch/SHA) for bleeding-edge.
+BURROW_VERSION="0.1.0-alpha.1"   # keep in sync with dashboard/app/dns_manager/__init__.py
+BURROW_REF="${BURROW_REF:-v${BURROW_VERSION}}"
+REPO_TARBALL="https://github.com/rl262/Burrow/archive/${BURROW_REF}.tar.gz"
 
 # Parameters resolve with precedence: explicit env > existing burrow.conf (re-run)
 # > interactive prompt > built-in default. Capture explicit env overrides FIRST,
@@ -211,6 +223,8 @@ ADMIN_PASSWORD=$(printf '%q' "$ADMIN_PASSWORD")
 EOF
 chgrp "$BURROW_GROUP" "$ETC/burrow.conf"; chmod 0640 "$ETC/burrow.conf"
 umask 022
+# Stamp the installed version + source ref (check with: cat /etc/burrow/VERSION).
+printf 'burrow %s (ref %s)\n' "$BURROW_VERSION" "$BURROW_REF" >"$ETC/VERSION"
 export LOCAL_DOMAIN LAN_CIDR LISTEN_IP UPSTREAMS DASHBOARD_BIND \
        PDNS_DB_PASSWORD PDNS_API_KEY DASHBOARD_SESSION_SECRET ADMIN_PASSWORD \
        PDNS_API_URL UNBOUND_CONTROL UNBOUND_CHECKCONF UNBOUND_OVERRIDES_FILE \
@@ -368,7 +382,7 @@ systemctl enable --now burrow-dashboard.service >/dev/null 2>&1 || systemctl res
 HOST_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
 HOST_IP="${HOST_IP:-<this-host-ip>}"
 hr
-say "${C_B}Burrow is installed.${C_0}"
+say "${C_B}Burrow ${BURROW_VERSION} is installed.${C_0}"
 echo
 case "$DASHBOARD_BIND" in
   127.0.0.1|::1|localhost)

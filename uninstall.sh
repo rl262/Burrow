@@ -38,27 +38,28 @@ if [[ -f /etc/powerdns/pdns.conf.burrow-orig ]]; then
   mv -f /etc/powerdns/pdns.conf.burrow-orig /etc/powerdns/pdns.conf
 fi
 
+say "stopping unbound + pdns so systemd-resolved can reclaim port 53…"
+# Burrow ran unbound as the resolver on 0.0.0.0:53 (which covers 127.0.0.53). If
+# it is still listening when we (re)start systemd-resolved, resolved loses the
+# race for its 127.0.0.53:53 stub and comes up WITHOUT it -- then glibc/curl get
+# no DNS even though `resolvectl` still works via D-Bus. Stop + disable both so
+# DNS goes cleanly back to systemd-resolved (packages stay installed unless --purge).
+systemctl disable --now unbound 2>/dev/null || true
+systemctl disable --now pdns 2>/dev/null || true
+
 say "restoring systemd-resolved + resolv.conf…"
 rm -f /etc/systemd/resolved.conf.d/burrow.conf
-# resolv.conf currently points at 127.0.0.1 (Burrow's unbound), which we're
-# removing — so leave a WORKING resolver behind. Prefer handing DNS back to
-# systemd-resolved if it actually comes up as the manager; otherwise drop a
-# public-resolver fallback so the box can still resolve after uninstall.
-restored=0
 if systemctl list-unit-files systemd-resolved.service >/dev/null 2>&1; then
   systemctl restart systemd-resolved 2>/dev/null || true
-  if systemctl is-active --quiet systemd-resolved && [[ -e /run/systemd/resolve/stub-resolv.conf ]]; then
+  # Point resolv.conf back at the resolved stub, then wait (up to ~8s) for the box
+  # to actually resolve -- both the stub listener AND a DHCP/link uplink need a moment.
+  [[ -e /run/systemd/resolve/stub-resolv.conf ]] && \
     ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-    restored=1
-  fi
+  for _ in $(seq 1 16); do
+    getent hosts deb.debian.org >/dev/null 2>&1 && break
+    sleep 0.5
+  done
 fi
-if [[ "$restored" == "0" ]] && grep -q '127.0.0.1' /etc/resolv.conf 2>/dev/null; then
-  printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n' >/etc/resolv.conf
-fi
-
-say "restarting unbound + pdns with restored config…"
-systemctl restart unbound 2>/dev/null || true
-systemctl restart pdns 2>/dev/null || true
 
 say "removing Burrow files + user…"
 rm -rf /opt/burrow /etc/burrow /var/lib/burrow
@@ -71,6 +72,14 @@ if [[ "$PURGE" == "1" ]]; then
   export DEBIAN_FRONTEND=noninteractive
   apt-get purge -y -qq unbound pdns-server pdns-backend-mysql mariadb-server 2>/dev/null || true
   apt-get autoremove -y -qq 2>/dev/null || true
+fi
+
+# Final guarantee: never leave the box with broken DNS. If it still can't resolve
+# (no systemd-resolved, the stub didn't come up, or package removal disturbed it),
+# drop a static public resolver so the operator isn't stranded.
+if ! getent hosts deb.debian.org >/dev/null 2>&1; then
+  rm -f /etc/resolv.conf
+  printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n' >/etc/resolv.conf
 fi
 
 say "Burrow removed. (Re-check /etc/resolv.conf points where you expect.)"

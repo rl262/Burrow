@@ -25,6 +25,26 @@ sudo /opt/burrow/uninstall.sh --purge            # and confirm DNS is restored a
 
 **Re-running must stay idempotent.** Run `install.sh` twice and confirm it does not rotate secrets, duplicate zones, or needlessly restart services.
 
+### Containerized smoke test (what CI runs)
+
+CI (`.github/workflows/smoke.yml`) runs the full install → resolve → block → dashboard → uninstall cycle inside a systemd-enabled container on each target distro. You can run the same thing locally with Docker (Burrow needs real systemd, so the container boots `/sbin/init` as PID 1):
+
+```bash
+docker run -d --name burrow --privileged --cgroupns=host \
+  --tmpfs /run -v /sys/fs/cgroup:/sys/fs/cgroup:rw -v "$PWD:/src:ro" \
+  debian:13 bash -c 'apt-get update -qq && apt-get install -y -qq systemd systemd-sysv >/dev/null && exec /sbin/init'
+sleep 10
+docker exec burrow bash -c 'apt-get install -y -qq curl >/dev/null'
+docker exec -e ASSUME_YES=1 burrow bash -c 'cd /src && bash install.sh'
+
+docker exec burrow dig @127.0.0.1 example.com +short            # recursion
+docker exec burrow bash -c "dig @127.0.0.1 doubleclick.net | grep status:"  # -> NXDOMAIN
+docker exec burrow curl -fsS http://127.0.0.1:8088/healthz       # dashboard
+
+docker exec burrow /opt/burrow/uninstall.sh --purge
+docker rm -f burrow
+```
+
 ## Checks
 
 - **Shell** must pass `shellcheck`:

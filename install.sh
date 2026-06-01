@@ -319,10 +319,13 @@ if ! systemctl restart unbound; then
   die "unbound did not start. If systemd-resolved still holds :53, reboot and re-run."
 fi
 sleep 1
-# point the host's own resolver at Burrow
+# Point the host's own resolver at Burrow. rm first so a systemd-resolved symlink
+# is replaced by a real file; tolerate failure (e.g. a bind-mounted /etc/resolv.conf
+# inside a container) and fall through to a truncate-write.
 if [[ -L /etc/resolv.conf || -f /etc/resolv.conf ]]; then
-  rm -f /etc/resolv.conf
-  printf 'nameserver 127.0.0.1\noptions edns0 trust-ad\n' >/etc/resolv.conf
+  rm -f /etc/resolv.conf 2>/dev/null || true
+  printf 'nameserver 127.0.0.1\noptions edns0 trust-ad\n' >/etc/resolv.conf 2>/dev/null \
+    || warn "could not write /etc/resolv.conf — point this host's resolver at 127.0.0.1 manually."
 fi
 say "seeding blocklist (first refresh; downloads adlists)…"
 "$BLOCKLIST_REFRESH_SCRIPT" || warn "blocklist refresh failed — you can re-run: $BLOCKLIST_REFRESH_SCRIPT"

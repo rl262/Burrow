@@ -1,0 +1,88 @@
+name: smoke
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Full install -> resolve -> block -> dashboard -> uninstall cycle inside a
+# systemd-enabled container, on each target distro. Burrow targets bare VMs, so
+# we boot systemd as PID 1 in a privileged container to exercise the real units.
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Boot ${{ matrix.image }} with systemd (PID 1)
+        run: |
+          docker run -d --name burrow --privileged --cgroupns=host \
+            --tmpfs /run --tmpfs /run/lock \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+            -v "$PWD:/src:ro" \
+            -e container=docker \
+            "${{ matrix.image }}" \
+            bash -c 'export DEBIAN_FRONTEND=noninteractive; \
+                     apt-get update -qq && \
+                     apt-get install -y -qq systemd systemd-sysv >/dev/null && \
+                     exec /sbin/init'
+          # Wait for systemd to finish booting (running or degraded both OK).
+          for _ in $(seq 1 60); do
+            s="$(docker exec burrow systemctl is-system-running 2>/dev/null || true)"
+            case "$s" in running|degraded) break;; esac
+            sleep 2
+          done
+          echo "system state: $(docker exec burrow systemctl is-system-running || true)"
+
+      - name: Run the Burrow installer (non-interactive, local checkout)
+        run: |
+          docker exec burrow bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get install -y -qq curl ca-certificates >/dev/null'
+          docker exec \
+            -e ASSUME_YES=1 \
+            -e LOCAL_DOMAIN=home.arpa \
+            -e LAN_CIDR=192.168.1.0/24 \
+            -e LISTEN_IP=0.0.0.0 \
+            -e DASHBOARD_BIND=127.0.0.1 \
+            -e ADMIN_PASSWORD=ci-smoke-test \
+            burrow bash -c 'cd /src && bash install.sh'
+
+      - name: Smoke — recursion, ad-block, local zone, dashboard
+        run: |
+          echo "::group::recursive resolution"
+          docker exec burrow dig @127.0.0.1 example.com +short | tee /tmp/a
+          grep -qE '^[0-9]+\.' /tmp/a
+          echo "::endgroup::"
+          echo "::group::ad domain is blocked (NXDOMAIN)"
+          docker exec burrow bash -c "dig @127.0.0.1 doubleclick.net | grep -q 'status: NXDOMAIN'"
+          echo "::endgroup::"
+          echo "::group::local forward zone resolves"
+          docker exec burrow bash -c "dig @127.0.0.1 ns.home.arpa +short | grep -qE '^[0-9]+\.'"
+          echo "::endgroup::"
+          echo "::group::dashboard health"
+          docker exec burrow curl -fsS http://127.0.0.1:8088/healthz
+          echo "::endgroup::"
+
+      - name: Idempotency — re-run the installer
+        run: |
+          docker exec -e ASSUME_YES=1 burrow bash -c 'cd /src && bash install.sh' >/dev/null
+          docker exec burrow curl -fsS http://127.0.0.1:8088/healthz
+
+      - name: Uninstall (--purge) and verify DNS still resolves
+        run: |
+          docker exec burrow /opt/burrow/uninstall.sh --purge
+          docker exec burrow getent hosts example.com
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          docker exec burrow bash -c 'systemctl is-active unbound pdns mariadb burrow-dashboard || true'
+          docker exec burrow bash -c 'unbound-checkconf || true'
+          docker exec burrow bash -c 'journalctl -u unbound -u pdns -u burrow-dashboard -n 80 --no-pager || true'
+          docker logs burrow 2>&1 | tail -50 || true
+
+      - name: Tear down
+        if: always()
+        run: docker rm -f burrow 2>/dev/null || true

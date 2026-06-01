@@ -78,8 +78,8 @@ fi
 # (no systemd-resolved, the stub didn't come up, or package removal disturbed it),
 # drop a static public resolver so the operator isn't stranded.
 if ! getent hosts deb.debian.org >/dev/null 2>&1; then
-  rm -f /etc/resolv.conf
-  printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n' >/etc/resolv.conf
+  rm -f /etc/resolv.conf 2>/dev/null || true   # tolerate a bind-mounted resolv.conf (container)
+  printf 'nameserver 1.1.1.1\nnameserver 9.9.9.9\n' >/etc/resolv.conf 2>/dev/null || true
 fi
 
 say "Burrow removed. (Re-check /etc/resolv.conf points where you expect.)"

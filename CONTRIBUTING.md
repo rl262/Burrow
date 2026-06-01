@@ -58,6 +58,16 @@ docker rm -f burrow
   ```
 - Match the surrounding style; keep commits small and focused with clear messages.
 
+## Demo data (for screenshots)
+
+[`examples/demo-seed.sh`](examples/demo-seed.sh) populates an install with believable **fake** data for screenshots/demos — a fake local zone (`nas`, `jellyfin`, `grafana`, …), reverse PTRs, a couple of allow/deny overrides, and (with `--activity`) some blocked-query traffic so the Activity tab has data. Run it on a throwaway demo box (ideally installed with `LOCAL_DOMAIN=home.arpa` and `LAN_CIDR=192.168.1.0/24` so the data matches):
+
+```bash
+sudo bash examples/demo-seed.sh --activity
+```
+
+It's idempotent and **not for production** (it writes fake records into your local zone). `--activity` adds temporary `192.168.1.x` IP aliases to generate varied client traffic, then removes them.
+
 ## Submitting
 
 Open a PR against `main` describing **what** you changed and **how you tested it** (which OS/arch). For anything security-sensitive, see [SECURITY.md](SECURITY.md) — report privately, don't open a public PR/issue.

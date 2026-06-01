@@ -11,7 +11,7 @@ body:
     attributes:
       label: What happened?
       description: What you did, what you expected, and what actually happened.
-      placeholder: "Ran install.sh on Debian 12; it aborted at '...'."
+      placeholder: "Ran install.sh on Ubuntu 24.04; it aborted at '...'."
     validations:
       required: true
   - type: input
@@ -19,7 +19,7 @@ body:
     attributes:
       label: Burrow version
       description: "Output of: cat /etc/burrow/VERSION  (or the tag/commit you installed)"
-      placeholder: "burrow 0.1.0-alpha.2 (ref v0.1.0-alpha.2)"
+      placeholder: "burrow 0.1.0-alpha.3 (ref v0.1.0-alpha.3)"
     validations:
       required: true
   - type: input

@@ -2,15 +2,15 @@
 # Burrow installer — a self-hosted, full-stack DNS server with ad-blocking and a
 # web dashboard (recursive Unbound + authoritative PowerDNS + the dashboard).
 #
-#   curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.2/install.sh -o /tmp/burrow.sh \
+#   curl -fsSL https://raw.githubusercontent.com/rl262/Burrow/v0.1.0-alpha.3/install.sh -o /tmp/burrow.sh \
 #     && sudo bash /tmp/burrow.sh
 #
 # Piping `curl ... | sudo bash` works too, but runs NON-INTERACTIVELY: stdin is
 # the pipe, so the prompts are skipped and defaults are used. Download-then-run
 # (above) or pass values as env vars to choose settings. See the README.
 #
-# Idempotent: safe to re-run. Validated end-to-end on Ubuntu 24.04; Debian 12/13,
-# Ubuntu 22.04, and arm64 are supported but NOT yet fully validated.
+# Idempotent: safe to re-run. Validated in CI on Ubuntu 24.04 + Debian 13 (current
+# stable releases). Other Debian/Ubuntu releases may work but are untested.
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ DASHBOARD_PORT=8088
 # the pinned release tag so `curl | bash` installs are reproducible (a push to
 # main never silently changes what new installs get). Override with
 # BURROW_REF=main (or any tag/branch/SHA) for bleeding-edge.
-BURROW_VERSION="0.1.0-alpha.2"   # keep in sync with dashboard/app/dns_manager/__init__.py
+BURROW_VERSION="0.1.0-alpha.3"   # keep in sync with dashboard/app/dns_manager/__init__.py
 BURROW_REF="${BURROW_REF:-v${BURROW_VERSION}}"
 REPO_TARBALL="https://github.com/rl262/Burrow/archive/${BURROW_REF}.tar.gz"
 

@@ -5,7 +5,7 @@ Thanks for helping! Burrow is a solo-maintained homelab project; issues and PRs 
 ## Before you start
 
 - Burrow installs system packages, writes `/etc`, and manages systemd units **as root** — always develop and test against a **throwaway VM or container**, never your daily resolver.
-- Targets: Debian 12/13 and Ubuntu 22.04/24.04 (`amd64`/`arm64`). Don't fix one by breaking another.
+- Targets: Ubuntu 24.04 and Debian 13 (`amd64`) — what CI validates. Other Debian/Ubuntu releases may work but aren't tested.
 - No secrets and no private data in code, comments, or commits — examples use `home.arpa` / `192.168.x` only.
 
 ## Test loop (throwaway VM)

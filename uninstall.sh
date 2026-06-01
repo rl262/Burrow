@@ -53,8 +53,11 @@ if systemctl list-unit-files systemd-resolved.service >/dev/null 2>&1; then
   systemctl restart systemd-resolved 2>/dev/null || true
   # Point resolv.conf back at the resolved stub, then wait (up to ~8s) for the box
   # to actually resolve -- both the stub listener AND a DHCP/link uplink need a moment.
-  [[ -e /run/systemd/resolve/stub-resolv.conf ]] && \
-    ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+  # ln may fail on a bind-mounted resolv.conf (container); tolerate it and let the
+  # final fallback below write a working resolver.
+  if [[ -e /run/systemd/resolve/stub-resolv.conf ]]; then
+    ln -sf ../run/systemd/resolve/stub-resolv.conf /etc/resolv.conf 2>/dev/null || true
+  fi
   for _ in $(seq 1 16); do
     getent hosts deb.debian.org >/dev/null 2>&1 && break
     sleep 0.5

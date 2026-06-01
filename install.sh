@@ -80,7 +80,10 @@ if [[ ! -d "$SRC/config/unbound" || ! -d "$SRC/dashboard/app" ]]; then
     || die "failed to download Burrow from $REPO_TARBALL"
 fi
 [[ -f "$SRC/dashboard/app/dns_manager/main.py" ]] || die "source tree incomplete at $SRC"
-cleanup() { [[ -n "$CLEANUP_SRC" ]] && rm -rf "$CLEANUP_SRC"; }
+# `return 0` is load-bearing: this is the EXIT trap, and without it a local-checkout
+# install (CLEANUP_SRC empty) ends on a false `[[ -n "" ]]`, making the whole script
+# exit 1 on success.
+cleanup() { [[ -n "$CLEANUP_SRC" ]] && rm -rf "$CLEANUP_SRC"; return 0; }
 trap cleanup EXIT
 # shellcheck source=/dev/null
 source "$SRC/lib/burrow-net.sh"
